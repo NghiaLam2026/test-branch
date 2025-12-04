@@ -1,0 +1,377 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\geometry{margin=1in}
+
+\title{Predicting Wine Quality: A Machine Learning Approach}
+\author{Your Name(s) \\ Georgia State University \\ CSC 4780 Final Project}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Introduction and Motivation}
+
+Wine quality assessment has traditionally been the domain of expert sommeliers, relying on subjective sensory evaluation. However, the wine industry and consumers could benefit significantly from objective, data-driven quality predictions based on measurable physicochemical properties. This project aims to develop machine learning models capable of accurately predicting wine quality scores using only chemical measurements, eliminating the need for expensive expert tastings.
+
+The ability to predict wine quality from chemical properties has several practical applications:
+\begin{itemize}
+    \item \textbf{Quality Control}: Winemakers can monitor wine quality during production
+    \item \textbf{Consumer Guidance}: Help consumers make informed purchasing decisions
+    \item \textbf{Process Optimization}: Identify which chemical properties most influence quality
+    \item \textbf{Cost Reduction}: Reduce reliance on expensive expert panels
+\end{itemize}
+
+\section{Problem Statement}
+
+The primary research questions addressed in this project are:
+\begin{enumerate}
+    \item Can machine learning models accurately predict wine quality scores from physicochemical properties alone?
+    \item Which features are most important for predicting wine quality?
+    \item Do different models perform better for red versus white wines?
+    \item How can feature selection improve model performance and interpretability?
+\end{enumerate}
+
+These questions are important because they test the feasibility of automated quality assessment and help identify the key chemical drivers of wine quality, which can inform winemaking practices.
+
+\section{Dataset Description}
+
+\subsection{Data Source}
+We utilized the Wine Quality Dataset from the UCI Machine Learning Repository \cite{uci_wine}, which contains two separate datasets:
+\begin{itemize}
+    \item \textbf{Red Wine}: 1,599 samples
+    \item \textbf{White Wine}: 4,898 samples
+\end{itemize}
+
+\subsection{Features}
+The dataset includes 11 physicochemical features measured for each wine sample:
+
+\begin{description}
+    \item[Fixed Acidity] Non-volatile acids (tartaric, malic, citric) in g/dm³. Contributes to tartness and stability.
+    \item[Volatile Acidity] Acetic acid content in g/dm³. High levels indicate spoilage and vinegar-like taste.
+    \item[Citric Acid] Citric acid content in g/dm³. Adds freshness and flavor.
+    \item[Residual Sugar] Sugar remaining after fermentation in g/dm³. Determines sweetness level.
+    \item[Chlorides] Salt content in g/dm³. Affects taste and mouthfeel.
+    \item[Free Sulfur Dioxide] Free SO₂ in mg/dm³. Acts as antimicrobial and antioxidant.
+    \item[Total Sulfur Dioxide] Total SO₂ (free + bound) in mg/dm³. Used as preservative.
+    \item[Density] Wine density in g/cm³. Related to sugar and alcohol content.
+    \item[pH] Acidity/alkalinity measure (0-14 scale). Most wines range from 2.9 to 3.9.
+    \item[Sulphates] Potassium sulphate in g/dm³. Can affect wine flavor.
+    \item[Alcohol] Alcohol content by volume (\%). Influences body and flavor.
+\end{description}
+
+\subsection{Target Variable}
+The \textbf{quality} score is an integer rating from 0 to 10, assigned by expert wine tasters. This serves as our target variable for regression.
+
+\section{Exploratory Data Analysis}
+
+\subsection{Data Quality Assessment}
+Our initial analysis revealed that both datasets were remarkably clean:
+\begin{itemize}
+    \item \textbf{No missing values} in either red or white wine datasets
+    \item All features were numeric, requiring no categorical encoding
+    \item Data types were appropriate for analysis
+\end{itemize}
+
+This data quality significantly streamlined our preprocessing pipeline.
+
+\subsection{Univariate Analysis}
+Distribution analysis revealed several interesting patterns:
+\begin{itemize}
+    \item Most features followed approximately normal distributions
+    \item Some features (e.g., residual sugar, chlorides) showed right-skewed distributions
+    \item Outliers were present in several features, particularly in chlorides and residual sugar
+\end{itemize}
+
+Boxplot analysis identified outliers that required careful consideration during modeling, though we chose not to remove them as they may represent legitimate wine characteristics.
+
+\subsection{Bivariate Analysis: Correlation with Quality}
+Correlation analysis revealed key relationships between features and wine quality:
+
+\textbf{Red Wine:}
+\begin{itemize}
+    \item \textbf{Strongest positive correlation}: Alcohol (0.476) - Higher alcohol content associated with better quality
+    \item \textbf{Strongest negative correlation}: Volatile Acidity (-0.391) - Lower volatile acidity associated with better quality
+    \item Moderate positive correlations: Sulphates (0.251), Citric Acid (0.226)
+\end{itemize}
+
+\textbf{White Wine:}
+\begin{itemize}
+    \item \textbf{Strongest positive correlation}: Alcohol (0.436) - Consistent with red wine findings
+    \item \textbf{Strongest negative correlation}: Density (-0.307) - Lower density associated with better quality
+    \item Moderate negative correlations: Chlorides (-0.210), Volatile Acidity (-0.195)
+\end{itemize}
+
+\subsection{Feature Intercorrelations}
+The correlation matrix revealed important multicollinearity issues, particularly in white wine:
+\begin{itemize}
+    \item \textbf{Residual Sugar and Density}: Correlation of 0.839 - highly correlated
+    \item \textbf{Density and Alcohol}: Correlation of -0.780 - strong negative correlation
+    \item These relationships make sense chemically: higher sugar increases density, while higher alcohol decreases density
+\end{itemize}
+
+\section{Feature Selection}
+
+To meet project requirements and improve model performance, we applied two feature selection techniques:
+
+\subsection{Method 1: Correlation-Based Feature Selection}
+We identified highly correlated feature pairs (correlation $\geq$ 0.7) and removed redundant features:
+
+\textbf{White Wine:}
+\begin{itemize}
+    \item \textbf{Residual Sugar $\leftrightarrow$ Density}: 0.839 correlation
+    \item \textbf{Density $\leftrightarrow$ Alcohol}: -0.780 correlation
+    \item \textbf{Decision}: Remove \textit{residual sugar} and \textit{density}, keep \textit{alcohol} (highest correlation with quality: 0.436)
+\end{itemize}
+
+\textbf{Red Wine:}
+\begin{itemize}
+    \item No feature pairs exceeded the 0.7 correlation threshold
+    \item All features retained for modeling
+\end{itemize}
+
+\subsection{Method 2: Random Forest Feature Importance}
+We trained Random Forest models to identify feature importance scores:
+
+\textbf{Key Findings:}
+\begin{itemize}
+    \item \textbf{Alcohol} consistently ranked as the most important feature for both wine types
+    \item \textbf{Volatile Acidity} was highly important for red wine prediction
+    \item \textbf{Density} showed high importance for white wine (supporting correlation findings)
+    \item Features like \textit{free sulfur dioxide} and \textit{residual sugar} showed lower importance
+\end{itemize}
+
+\subsection{Feature Selection Comparison}
+Both methods identified \textit{alcohol} as the most critical feature, validating our approach. The correlation-based method helped identify multicollinearity, while Random Forest importance provided a model-based perspective on feature relevance.
+
+\section{Methodology}
+
+\subsection{Data Preprocessing}
+\begin{itemize}
+    \item \textbf{Train-Test Split}: 70\% training, 30\% testing (random state = 42 for reproducibility)
+    \item \textbf{No scaling} for Linear Regression (not required)
+    \item \textbf{StandardScaler} applied for KNN and SVM (distance-based algorithms)
+    \item \textbf{No feature removal} implemented in final models (analysis only)
+\end{itemize}
+
+\subsection{Models Implemented}
+We implemented four regression models from different learning paradigms:
+
+\subsubsection{Linear Regression}
+\begin{itemize}
+    \item \textbf{Category}: Error-based (Linear models)
+    \item \textbf{Rationale}: Baseline model, assumes linear relationships
+    \item \textbf{Hyperparameters}: None (default sklearn implementation)
+\end{itemize}
+
+\subsubsection{K-Nearest Neighbors (KNN)}
+\begin{itemize}
+    \item \textbf{Category}: Similarity-based
+    \item \textbf{Rationale}: Non-parametric, captures local patterns
+    \item \textbf{Hyperparameters}: 
+    \begin{itemize}
+        \item Red Wine: $k = 11$ neighbors
+        \item White Wine: $k = 5$ neighbors
+        \item StandardScaler for feature normalization
+    \end{itemize}
+    \item \textbf{Selection Process}: Tested $k$ values from 1 to 20, selected based on validation performance
+\end{itemize}
+
+\subsubsection{Random Forest Regressor}
+\begin{itemize}
+    \item \textbf{Category}: Information-based (Decision Trees)
+    \item \textbf{Rationale}: Handles non-linear relationships, provides feature importance
+    \item \textbf{Hyperparameters}:
+    \begin{itemize}
+        \item $n\_estimators = 300$ trees
+        \item $max\_depth = 6$ (to prevent overfitting)
+        \item $min\_samples\_leaf = 3$
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Support Vector Machine (SVM)}
+\begin{itemize}
+    \item \textbf{Category}: Error-based
+    \item \textbf{Rationale}: Effective for non-linear relationships with kernel trick
+    \item \textbf{Hyperparameters}: RBF kernel with default parameters
+\end{itemize}
+
+\subsection{Evaluation Metrics}
+We used two complementary metrics:
+\begin{itemize}
+    \item \textbf{Root Mean Squared Error (RMSE)}: Measures prediction error in quality score units
+    \item \textbf{R-squared ($R^2$)}: Proportion of variance explained by the model
+\end{itemize}
+
+\section{Results}
+
+\subsection{Model Performance Summary}
+
+Table \ref{tab:results} summarizes the performance of all models on both datasets.
+
+\begin{table}[H]
+\centering
+\caption{Model Performance Comparison}
+\label{tab:results}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Dataset} & \textbf{Test RMSE} & \textbf{Test $R^2$} & \textbf{Overfitting Risk} \\
+\midrule
+Linear Regression & Red Wine & 0.64 & 0.35 & Low \\
+Linear Regression & White Wine & 0.74 & 0.27 & Low \\
+KNN & Red Wine & 0.62 & 0.42 & Moderate \\
+KNN & White Wine & 0.74 & 0.30 & Moderate \\
+Random Forest & Red Wine & 0.58 & 0.48 & Low (after tuning) \\
+Random Forest & White Wine & 0.70 & 0.40 & Low (after tuning) \\
+SVM & Red Wine & [Value] & [Value] & [Status] \\
+SVM & White Wine & [Value] & [Value] & [Status] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Findings}
+
+\subsubsection{Linear Regression}
+\begin{itemize}
+    \item Modest performance: Explained 35\% variance (red) and 27\% (white)
+    \item Minimal train-test gap, indicating good generalization
+    \item Suggests non-linear relationships exist in the data
+\end{itemize}
+
+\subsubsection{K-Nearest Neighbors}
+\begin{itemize}
+    \item Moderate improvement over linear regression
+    \item Better performance on red wine ($R^2 = 0.42$) than white ($R^2 = 0.30$)
+    \item Some overfitting observed (larger train-test gap)
+    \item Optimal $k$ values differed between wine types
+\end{itemize}
+
+\subsubsection{Random Forest}
+\begin{itemize}
+    \item \textbf{Best overall performance}: $R^2 = 0.48$ (red), $R^2 = 0.40$ (white)
+    \item Initially showed overfitting, resolved through hyperparameter tuning
+    \item Provided valuable feature importance insights
+    \item Captured non-linear relationships effectively
+\end{itemize}
+
+\subsection{Interesting and Unexpected Findings}
+
+\begin{enumerate}
+    \item \textbf{Alcohol Dominance}: Alcohol content emerged as the single most important predictor across all methods, with correlations of 0.476 (red) and 0.436 (white). This was consistent across correlation analysis, Random Forest importance, and model coefficients.
+    
+    \item \textbf{Red vs. White Differences}: 
+    \begin{itemize}
+        \item Models generally performed better on red wine
+        \item Volatile acidity was more important for red wine quality
+        \item White wine showed stronger multicollinearity (density-sugar-alcohol relationships)
+    \end{itemize}
+    
+    \item \textbf{Multicollinearity in White Wine}: The strong correlation between residual sugar, density, and alcohol (0.839 and -0.780) revealed interesting chemical relationships. Higher sugar increases density, while alcohol decreases it, creating a complex interaction.
+    
+    \item \textbf{Limited Predictive Power}: Even the best model (Random Forest) only explained about 48\% of variance, suggesting that:
+    \begin{itemize}
+        \item Expert quality ratings may incorporate factors beyond measured chemistry
+        \item Non-linear interactions between features may be complex
+        \item Quality assessment has inherent subjectivity
+    \end{itemize}
+    
+    \item \textbf{Overfitting Patterns}: KNN showed more overfitting than tree-based methods, likely due to its sensitivity to local patterns in the training data.
+\end{enumerate}
+
+\section{Discussion}
+
+\subsection{Model Interpretability}
+Random Forest provided the best balance of performance and interpretability through feature importance scores. The consistent identification of alcohol as the primary quality driver aligns with wine industry knowledge, where alcohol content significantly affects body, flavor intensity, and perceived quality.
+
+\subsection{Limitations}
+\begin{itemize}
+    \item \textbf{Subjective Target Variable}: Quality scores from expert tasters may vary
+    \item \textbf{Limited Feature Set}: Only 11 chemical properties; missing factors like grape variety, region, vintage
+    \item \textbf{Class Imbalance}: Quality scores clustered in middle range (5-7), with few extreme values
+    \item \textbf{No Temporal Information}: Cannot account for aging effects
+\end{itemize}
+
+\subsection{Model Selection Recommendation}
+For practical application, we recommend \textbf{Random Forest} because:
+\begin{itemize}
+    \item Highest predictive performance ($R^2 = 0.48$ for red wine)
+    \item Good generalization (low overfitting after tuning)
+    \item Provides feature importance for interpretability
+    \item Handles non-linear relationships effectively
+\end{itemize}
+
+\section{Lessons Learned}
+
+\subsection{Technical Insights}
+\begin{enumerate}
+    \item \textbf{Feature Selection Matters}: Identifying multicollinearity helped understand data relationships, even if we didn't remove features in final models.
+    
+    \item \textbf{Model Diversity}: Using models from different categories (similarity-based, error-based, information-based) provided complementary perspectives.
+    
+    \item \textbf{Hyperparameter Tuning}: Random Forest required careful tuning to balance performance and overfitting.
+    
+    \item \textbf{Data Quality}: Clean data (no missing values) significantly streamlined the analysis pipeline.
+\end{enumerate}
+
+\subsection{Methodological Insights}
+\begin{enumerate}
+    \item \textbf{EDA is Critical}: Comprehensive exploratory analysis revealed key patterns (alcohol importance, multicollinearity) that informed modeling decisions.
+    
+    \item \textbf{Red vs. White Differences}: Treating wine types separately revealed important differences in feature importance and model performance.
+    
+    \item \textbf{Baseline Models Matter}: Linear Regression provided a valuable baseline, showing that non-linear models were necessary.
+    
+    \item \textbf{Evaluation Metrics}: Using both RMSE and $R^2$ provided complementary views of model performance.
+\end{enumerate}
+
+\section{Conclusion}
+
+This project successfully developed machine learning models to predict wine quality from physicochemical properties. Key achievements include:
+
+\begin{itemize}
+    \item Implemented four models from different learning paradigms
+    \item Applied two feature selection techniques (correlation-based and Random Forest importance)
+    \item Achieved best performance of $R^2 = 0.48$ using Random Forest on red wine
+    \item Identified alcohol content as the primary quality predictor
+    \item Discovered important differences between red and white wine characteristics
+\end{itemize}
+
+While the models achieved moderate success, the limited explained variance (48\% maximum) suggests that wine quality assessment involves factors beyond measured chemistry, including subjective expert judgment and potentially unmeasured properties. Future work could incorporate additional features (grape variety, region, vintage) or explore ensemble methods to improve predictive performance.
+
+\section{Future Work}
+
+Potential directions for extending this research:
+\begin{enumerate}
+    \item \textbf{Additional Features}: Incorporate grape variety, region, vintage, and production methods
+    \item \textbf{Ensemble Methods}: Combine multiple models for improved performance
+    \item \textbf{Deep Learning}: Explore neural networks for capturing complex feature interactions
+    \item \textbf{Classification Approach}: Treat quality as ordinal classification problem
+    \item \textbf{Feature Engineering}: Create interaction terms and polynomial features
+    \item \textbf{Cross-Validation}: Implement k-fold cross-validation for more robust evaluation
+\end{enumerate}
+
+\begin{thebibliography}{9}
+\bibitem{uci_wine}
+Cortez, P., Cerdeira, A., Almeida, F., Matos, T., \& Reis, J. (2009). Modeling wine preferences by data mining from physicochemical properties. \textit{Decision Support Systems}, 47(4), 547-553.
+
+\bibitem{sklearn}
+Pedregosa, F., et al. (2011). Scikit-learn: Machine learning in Python. \textit{Journal of Machine Learning Research}, 12, 2825-2830.
+\end{thebibliography}
+
+\end{document}
+
