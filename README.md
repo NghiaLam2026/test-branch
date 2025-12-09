@@ -651,8 +651,10 @@ After establishing baseline performance with default hyperparameters, we perform
 - `max_iter`: [1500, 2000, 2500] - Maximum iterations for convergence
 
 **SMOTE Approach**:
-- Same parameter grid as class weight approach
-- Note: `multi_class` parameter removed (deprecated in sklearn 1.5+, multinomial is now default)
+- `C`: [0.1, 1.0, 10.0, 100.0] - Regularization strength
+- `solver`: ["lbfgs", "liblinear"] - Optimization algorithm
+- `max_iter`: [1000, 1500, 2000] - Maximum iterations for convergence
+- Note: Slightly different max_iter range than class weight approach
 
 **Key Finding**: Lower C values (0.1) often performed best, indicating preference for stronger regularization.
 
@@ -752,14 +754,36 @@ After establishing baseline performance with default hyperparameters, we perform
 - **Logistic Regression**: Modest improvement
 
 **Key Learnings**:
-1. **XGBoost benefited most from tuning** - Larger hyperparameter space allowed for significant optimization
+1. **XGBoost benefited most from tuning** - Larger hyperparameter space allowed for significant optimization (+2.7% improvement for class weight approach)
 2. **SMOTE models required different hyperparameters** - Optimal settings differed from class weight models
 3. **Tree-based models had more tuning potential** - More hyperparameters to optimize
 4. **Linear models had limited gains** - Smaller hyperparameter space
+5. **Comprehensive comparison revealed best approach** - Comparing all 4 approaches (Original Class Weight, Original SMOTE, Optimized Class Weight, Optimized SMOTE) showed that optimization combined with SMOTE often produced the best results
+
+### Comprehensive 4-Way Comparison
+
+To fully understand the impact of both hyperparameter tuning and SMOTE, we performed a **comprehensive comparison of all four approaches**:
+
+1. **Original Class Weight** - Baseline models with `class_weight="balanced"`
+2. **Original SMOTE** - Baseline models trained on SMOTE-upsampled data
+3. **Optimized Class Weight** - Grid search optimized models with class weights
+4. **Optimized SMOTE** - Grid search optimized models with SMOTE
+
+**Key Insights from 4-Way Comparison**:
+- **CatBoost**: Optimized SMOTE achieved best performance (96.02% accuracy, 0.9170 F1-macro)
+- **XGBoost**: Optimized SMOTE performed best (95.97% accuracy, 0.9156 F1-macro)
+- **Random Forest**: Optimized Class Weight performed slightly better (95.92% accuracy)
+- **Logistic Regression**: Optimized Class Weight performed better (94.15% accuracy)
+
+**Visualization**: The notebook includes comprehensive visualizations showing:
+- Side-by-side accuracy comparison across all 4 approaches
+- Side-by-side F1-macro comparison across all 4 approaches
+- Improvement from optimization for both class weight and SMOTE approaches
+- Summary table with all metrics for easy reference
 
 ### Best Model Selection
 
-After optimization, **CatBoost with SMOTE** emerged as the best overall model:
+After optimization, **CatBoost with SMOTE (Optimized)** emerged as the best overall model:
 - **Test Accuracy**: 96.02%
 - **F1-Macro**: 0.9170
 - **F1-Weighted**: 0.9583
@@ -770,6 +794,7 @@ This model was selected for final deployment based on:
 2. Best F1-macro score (balanced class performance)
 3. Consistent performance across metrics
 4. Native categorical handling advantage
+5. Best performance in comprehensive 4-way comparison
 
 ---
 
@@ -979,7 +1004,7 @@ See `requirements.txt` for complete list. Key libraries:
 Potential improvements:
 1. **Additional Features**: Inspection type, violation codes, critical flags
 2. **Advanced Feature Engineering**: Time-series features, interaction terms
-3. **Hyperparameter Tuning**: Systematic grid search or Bayesian optimization
+3. **Ensemble Methods**: Combining predictions from multiple models
 4. **Deep Learning**: Neural networks for complex pattern recognition
 5. **Explainability**: SHAP values, LIME for model interpretability
 
